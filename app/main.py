@@ -48,20 +48,33 @@ app.include_router(v1_routes.router, prefix="/api/v1", tags=["v1"])
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on application startup."""
+    # Skip Redis connection if already connected (e.g., in tests with mock)
+    if cache_service._connected and cache_service.redis_client is not None:
+        return
+    
     # Connect to Redis
     # In test environment, Redis connection is mocked, so this will use the mock
     try:
         await cache_service.connect()
     except Exception as e:
         # Log error but don't fail startup (for test environments)
+        # This allows tests to run without real Redis
         logger.warning(f"Failed to connect to Redis during startup: {e}. Continuing anyway.")
+        # In test mode, ensure we mark as not connected if connection fails
+        # The mock will handle this in test environment
+        if settings.environment != "test":
+            cache_service._connected = False
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on application shutdown."""
-    # Disconnect from Redis
-    await cache_service.disconnect()
+    # Disconnect from Redis (only if connected)
+    if cache_service._connected:
+        try:
+            await cache_service.disconnect()
+        except Exception as e:
+            logger.warning(f"Error disconnecting from Redis: {e}")
 
 
 @app.get("/health")

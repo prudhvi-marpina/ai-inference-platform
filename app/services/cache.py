@@ -35,8 +35,18 @@ class CacheService:
         Establish connection to Redis.
         
         This should be called once at application startup.
+        In test environments, this may be mocked.
         """
         import asyncio
+        import os
+        
+        # Skip real connection if already connected (e.g., in tests with mock)
+        if self._connected and self.redis_client is not None:
+            return
+        
+        # Skip real connection in test environment if already mocked
+        if os.getenv("ENVIRONMENT") == "test" and self._connected:
+            return
         
         max_retries = 3
         retry_delay = 2  # seconds

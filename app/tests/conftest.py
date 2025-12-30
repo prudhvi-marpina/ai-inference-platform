@@ -11,6 +11,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import asyncio
 import os
 
+# Set test environment variable BEFORE any imports
+os.environ["ENVIRONMENT"] = "test"
+
 # Mock Redis connection BEFORE importing app
 # This prevents startup_event from trying to connect to real Redis
 from app.services.cache import cache_service
@@ -23,15 +26,18 @@ mock_redis_client.setex = AsyncMock(return_value=True)
 mock_redis_client.close = AsyncMock(return_value=None)
 
 # Mock the connect method to use our mock client
-original_connect = cache_service.connect
-
+# This MUST be done before importing app
 async def mock_connect():
     """Mock connect that doesn't actually connect to Redis."""
+    # Set mock client and connected state
     cache_service.redis_client = mock_redis_client
     cache_service._connected = True
+    # Return immediately (no actual connection)
+    return
 
+# Replace the connect method with our mock BEFORE importing app
 cache_service.connect = mock_connect
-# Set connected state so app doesn't try to connect
+# Pre-set connected state and mock client so connect() can be a no-op
 cache_service._connected = True
 cache_service.redis_client = mock_redis_client
 
@@ -67,8 +73,14 @@ def client():
     - Easy: Simple request/response testing
     - Isolated: Each test gets a fresh client
     
-    Note: Redis connection is mocked automatically before app import
+    Note: Redis connection is mocked automatically before app import.
+    TestClient will trigger startup events, but they'll use the mocked Redis.
     """
+    # Ensure mock is in place before creating TestClient
+    cache_service._connected = True
+    cache_service.redis_client = mock_redis_client
+    
+    # Create TestClient - startup events will use mocked Redis
     return TestClient(app)
 
 
