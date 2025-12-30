@@ -1,0 +1,30 @@
+# Kustomization file for environment-specific configurations
+# This allows you to have different configs for dev, staging, production
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Base resources
+resources:
+  - deployment.yaml
+  - service.yaml
+  - configmap.yaml
+  - hpa.yaml
+  - ingress.yaml
+  # Uncomment if using self-hosted Redis:
+  # - redis-deployment.yaml
+
+# Common labels
+commonLabels:
+  app: ai-inference-platform
+  managed-by: kustomize
+
+# Namespace (optional)
+# namespace: ai-inference
+
+# Image overrides (set in environment-specific overlays)
+# images:
+# - name: ai-inference-platform
+#   newName: your-registry/ai-inference-platform
+#   newTag: latest
+

@@ -1,0 +1,55 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-inference-platform-ingress
+  namespace: default
+  labels:
+    app: ai-inference-platform
+  annotations:
+    # Ingress controller annotations (adjust based on your setup)
+    # For NGINX Ingress Controller:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    
+    # Rate limiting (optional)
+    # nginx.ingress.kubernetes.io/limit-rps: "100"
+    
+    # CORS (if needed)
+    # nginx.ingress.kubernetes.io/enable-cors: "true"
+    # nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+spec:
+  # Ingress class (adjust based on your setup)
+  ingressClassName: nginx
+  
+  # Rules for routing traffic
+  rules:
+  # Rule 1: Default rule (all traffic)
+  - host: ai-inference.example.com  # Change to your domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ai-inference-platform
+            port:
+              number: 80
+  
+  # Rule 2: API-specific path (optional)
+  # - host: api.example.com
+  #   http:
+  #     paths:
+  #     - path: /api
+  #       pathType: Prefix
+  #       backend:
+  #         service:
+  #           name: ai-inference-platform
+  #           port:
+  #             number: 80
+  
+  # TLS/SSL configuration (optional - uncomment if using HTTPS)
+  # tls:
+  # - hosts:
+  #   - ai-inference.example.com
+  #   secretName: ai-inference-tls
+

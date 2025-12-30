@@ -1,0 +1,64 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ai-inference-platform-hpa
+  namespace: default
+  labels:
+    app: ai-inference-platform
+spec:
+  # Target deployment to scale
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ai-inference-platform
+  
+  # Minimum number of pods
+  minReplicas: 2
+  
+  # Maximum number of pods
+  maxReplicas: 10
+  
+  # Metrics to base scaling on
+  metrics:
+  # Scale based on CPU usage
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70  # Scale when CPU > 70%
+  
+  # Scale based on memory usage
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80  # Scale when memory > 80%
+  
+  # Behavior configuration
+  behavior:
+    # Scale up quickly when needed
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100  # Double pods if needed
+        periodSeconds: 15
+      - type: Pods
+        value: 2    # Or add 2 pods
+        periodSeconds: 15
+      selectPolicy: Max
+    
+    # Scale down slowly to avoid thrashing
+    scaleDown:
+      stabilizationWindowSeconds: 300  # Wait 5 minutes before scaling down
+      policies:
+      - type: Percent
+        value: 50   # Remove 50% of pods
+        periodSeconds: 60
+      - type: Pods
+        value: 1    # Or remove 1 pod
+        periodSeconds: 60
+      selectPolicy: Min
+

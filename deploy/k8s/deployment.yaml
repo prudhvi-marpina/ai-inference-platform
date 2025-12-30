@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-inference-platform
+  namespace: default
+  labels:
+    app: ai-inference-platform
+    version: v1
+spec:
+  # Number of replicas (instances) to run
+  # Start with 2 for high availability
+  replicas: 2
+  
+  # Strategy for updating pods
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # Allow 1 extra pod during update
+      maxUnavailable: 0  # Don't allow downtime (0 unavailable pods)
+  
+  # Selector to match pods
+  selector:
+    matchLabels:
+      app: ai-inference-platform
+  
+  # Pod template
+  template:
+    metadata:
+      labels:
+        app: ai-inference-platform
+        version: v1
+    spec:
+      # Container specification
+      containers:
+      - name: ai-inference-platform
+        # Docker image (replace with your registry)
+        # Example: your-registry/ai-inference-platform:latest
+        image: ai-inference-platform:latest
+        imagePullPolicy: IfNotPresent
+        
+        # Port the container listens on
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        
+        # Environment variables from ConfigMap and Secrets
+        env:
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: ai-inference-config
+              key: redis_url
+        - name: ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: ai-inference-config
+              key: environment
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: ai-inference-config
+              key: log_level
+        - name: RATE_LIMIT_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: ai-inference-config
+              key: rate_limit_enabled
+        - name: OTEL_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: ai-inference-config
+              key: otel_enabled
+        
+        # Resource limits (CPU and memory)
+        resources:
+          requests:
+            cpu: "200m"      # Request 0.2 CPU cores
+            memory: "512Mi"   # Request 512 MB RAM
+          limits:
+            cpu: "1000m"      # Limit to 1 CPU core
+            memory: "1Gi"     # Limit to 1 GB RAM
+        
+        # Health check - Kubernetes uses this to know if pod is healthy
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30  # Wait 30s before first check
+          periodSeconds: 10        # Check every 10 seconds
+          timeoutSeconds: 5        # Timeout after 5 seconds
+          failureThreshold: 3      # Restart after 3 failures
+        
+        # Readiness probe - Kubernetes uses this to know if pod is ready to serve traffic
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10  # Wait 10s before first check
+          periodSeconds: 5         # Check every 5 seconds
+          timeoutSeconds: 3        # Timeout after 3 seconds
+          failureThreshold: 3      # Mark not ready after 3 failures
+        
+        # Security context (run as non-root user)
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+      
+      # Restart policy
+      restartPolicy: Always
+      
+      # Image pull secrets (if using private registry)
+      # imagePullSecrets:
+      # - name: registry-secret
+
