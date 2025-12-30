@@ -9,10 +9,49 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, MagicMock, patch
 import asyncio
+import os
 
-from app.main import app
+# Mock Redis connection BEFORE importing app
+# This prevents startup_event from trying to connect to real Redis
 from app.services.cache import cache_service
+
+# Create a mock Redis client that will be used during app startup
+mock_redis_client = MagicMock()
+mock_redis_client.ping = AsyncMock(return_value=True)
+mock_redis_client.get = AsyncMock(return_value=None)
+mock_redis_client.setex = AsyncMock(return_value=True)
+mock_redis_client.close = AsyncMock(return_value=None)
+
+# Mock the connect method to use our mock client
+original_connect = cache_service.connect
+
+async def mock_connect():
+    """Mock connect that doesn't actually connect to Redis."""
+    cache_service.redis_client = mock_redis_client
+    cache_service._connected = True
+
+cache_service.connect = mock_connect
+# Set connected state so app doesn't try to connect
+cache_service._connected = True
+cache_service.redis_client = mock_redis_client
+
+# Now import app - it will use the mocked Redis connection
+from app.main import app
 from app.services.model import model_service
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_environment():
+    """
+    Automatically set up test environment for all tests.
+    This runs once per test session.
+    """
+    # Ensure Redis is mocked
+    cache_service._connected = True
+    cache_service.redis_client = mock_redis_client
+    yield
+    # Cleanup (if needed)
+    pass
 
 
 @pytest.fixture
@@ -27,6 +66,8 @@ def client():
     - Fast: No network overhead
     - Easy: Simple request/response testing
     - Isolated: Each test gets a fresh client
+    
+    Note: Redis connection is mocked automatically before app import
     """
     return TestClient(app)
 

@@ -91,6 +91,11 @@ jobs:
       
       # Step 5: Run tests
       - name: Run tests with pytest
+        env:
+          # Set test environment variables
+          ENVIRONMENT: test
+          REDIS_URL: redis://localhost:6379/0
+          # Tests use mocked Redis, but set this to avoid errors
         run: |
           pytest -v --tb=short
           # Run all tests with verbose output
